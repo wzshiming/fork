@@ -3,6 +3,7 @@ package fork
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -10,30 +11,34 @@ type Fork struct {
 	size int
 	max  int
 	cb   chan func()
+	lock sync.Mutex
 }
 
 func NewFork(max int) *Fork {
 	return &Fork{
-		size: 0,
-		max:  max,
-		cb:   make(chan func(), max*10),
+		max: max,
+		cb:  make(chan func(), max*10),
 	}
 }
 func (fo *Fork) Puah(f func()) {
+	fo.cb <- f
 	if fo.size < fo.max {
 		go fo.fork()
 	}
-	fo.cb <- f
 }
 
 func (fo *Fork) fork() {
+	fo.lock.Lock()
+	fo.size++
+	fo.lock.Unlock()
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
 		}
+		fo.lock.Lock()
 		fo.size--
+		fo.lock.Unlock()
 	}()
-	fo.size++
 	for {
 		select {
 		case f := <-fo.cb:
