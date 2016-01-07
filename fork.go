@@ -11,7 +11,7 @@ type Fork struct {
 	size int
 	max  int
 	cb   chan func()
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 func NewFork(max int) *Fork {
@@ -22,7 +22,10 @@ func NewFork(max int) *Fork {
 }
 func (fo *Fork) Puah(f func()) {
 	fo.cb <- f
-	if fo.size < fo.max {
+	fo.lock.RLock()
+	s := fo.size
+	fo.lock.RUnlock()
+	if s < fo.max {
 		go fo.fork()
 	}
 }
@@ -54,7 +57,10 @@ func (fo *Fork) fork() {
 func (fo *Fork) Join() {
 	for {
 		runtime.Gosched()
-		if fo.size == 0 {
+		fo.lock.RLock()
+		s := fo.size
+		fo.lock.RUnlock()
+		if s == 0 {
 			return
 		}
 	}
