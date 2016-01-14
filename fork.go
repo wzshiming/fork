@@ -1,66 +1,55 @@
 package fork
 
-import (
-	"fmt"
-	"runtime"
-	"sync"
-	"time"
-)
+import "runtime"
 
 type Fork struct {
-	size int
-	max  int
-	cb   chan func()
-	lock sync.RWMutex
+	max chan int
+	buf chan func()
+}
+
+func NewForkBuf(max int, buf int) *Fork {
+	fo := &Fork{
+		max: make(chan int, max),
+		buf: make(chan func(), buf),
+	}
+	for i := 0; i != max; i++ {
+		fo.max <- 0
+	}
+	return fo
 }
 
 func NewFork(max int) *Fork {
-	return &Fork{
-		max: max,
-		cb:  make(chan func(), max*10),
-	}
+	return NewForkBuf(max, max*10)
 }
+
 func (fo *Fork) Puah(f func()) {
-	fo.cb <- f
-	fo.lock.RLock()
-	s := fo.size
-	fo.lock.RUnlock()
-	if s < fo.max {
+	fo.buf <- f
+	select {
+	case <-fo.max:
 		go fo.fork()
+	default:
 	}
 }
 
 func (fo *Fork) fork() {
-	fo.lock.Lock()
-	fo.size++
-	fo.lock.Unlock()
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-		fo.lock.Lock()
-		fo.size--
-		fo.lock.Unlock()
-	}()
 	for {
 		select {
-		case f := <-fo.cb:
+		case f := <-fo.buf:
 			f()
-		case <-time.After(time.Second / 10):
-
+		default:
+			fo.max <- 0
 			return
 		}
 	}
-	return
 }
 
 func (fo *Fork) Join() {
 	for {
 		runtime.Gosched()
-		fo.lock.RLock()
-		s := fo.size
-		fo.lock.RUnlock()
-		if s == 0 {
+		select {
+		case fo.max <- 0:
+			<-fo.max
+		default:
 			return
 		}
 	}
