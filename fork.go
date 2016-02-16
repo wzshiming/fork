@@ -2,55 +2,59 @@ package fork
 
 import "runtime"
 
+var none = struct{}{}
+
 type Fork struct {
-	max chan int
-	buf chan func()
+	buf chan func()   // 缓冲闭包
+	max chan struct{} // 最大线程
 }
 
 func NewForkBuf(max int, buf int) *Fork {
-	fo := &Fork{
-		max: make(chan int, max),
+	return &Fork{
 		buf: make(chan func(), buf),
+		max: make(chan struct{}, max),
 	}
-	for i := 0; i != max; i++ {
-		fo.max <- 0
-	}
-	return fo
 }
 
 func NewFork(max int) *Fork {
-	return NewForkBuf(max, max*10)
+	return NewForkBuf(max, 1)
 }
 
+// 加入闭包
 func (fo *Fork) Puah(f func()) {
+	// 如果缓冲已满就在这里阻塞
 	fo.buf <- f
+
+	// 如果未达到最大线程则开启新线程执行
 	select {
-	case <-fo.max:
+	case fo.max <- none:
 		go fo.fork()
 	default:
 	}
+	return
 }
 
+// 开启一个新的线程执行闭包 没有闭包时自动结束
 func (fo *Fork) fork() {
 	for {
 		select {
 		case f := <-fo.buf:
 			f()
 		default:
-			fo.max <- 0
+			<-fo.max
 			return
 		}
 	}
+	return
 }
 
+// 等待所有线程结束在返回
 func (fo *Fork) Join() {
 	for {
 		runtime.Gosched()
-		select {
-		case fo.max <- 0:
-			<-fo.max
-		default:
+		if len(fo.max) == 0 {
 			return
 		}
 	}
+	return
 }
