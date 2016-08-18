@@ -1,6 +1,6 @@
 package fork
 
-import "runtime"
+import "time"
 
 var none = struct{}{}
 
@@ -51,10 +51,10 @@ func (fo *Fork) fork() {
 // 等待所有线程结束在返回
 func (fo *Fork) Join() {
 	for {
-		runtime.Gosched()
 		if len(fo.max) == 0 {
 			return
 		}
+		time.Sleep(time.Second / 10)
 	}
 	return
 }
