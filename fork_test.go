@@ -19,11 +19,11 @@ func testFork(t *testing.T, r, s, min int) {
 	f.Join()
 	su := time.Now().Sub(o)
 	in := v * time.Duration(min)
-	ax := in + v
+	ax := in + v*4
 	t.Log("(", r, ",", s, ")", in, "<", su, "<", ax)
 	if su < in || su > ax {
-		//t.Error("fork error")
-		t.Fatalf("fork error")
+		t.Error("fork error")
+		//t.Fatalf("fork error")
 	}
 }
 

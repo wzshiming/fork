@@ -1,18 +1,18 @@
 package fork
 
-import "time"
-
 var none = struct{}{}
 
 type Fork struct {
 	buf chan func()   // 缓冲闭包
 	max chan struct{} // 最大线程
+	sub chan struct{} // 线程结束 信号
 }
 
 func NewForkBuf(max int, buf int) *Fork {
 	return &Fork{
 		buf: make(chan func(), buf),
 		max: make(chan struct{}, max),
+		sub: make(chan struct{}, 1),
 	}
 }
 
@@ -42,8 +42,17 @@ func (fo *Fork) fork() {
 			f()
 		default:
 			<-fo.max
+			fo.forkExit()
 			return
 		}
+	}
+}
+
+// 线程结束信号
+func (fo *Fork) forkExit() {
+	select {
+	case fo.sub <- struct{}{}:
+	default:
 	}
 	return
 }
@@ -54,7 +63,9 @@ func (fo *Fork) Join() {
 		if len(fo.max) == 0 {
 			return
 		}
-		time.Sleep(time.Second / 10)
+		select {
+		case <-fo.sub:
+		}
 	}
 	return
 }
