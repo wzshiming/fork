@@ -47,3 +47,11 @@ func TestFork(t *testing.T) {
 	testLoop(t, 10, 100, 3)
 	testLoop(t, 10, 10, 3)
 }
+
+func TestCCC(t *testing.T) {
+	f := NewFork(1)
+	f.Puah(func() {
+		time.Sleep(10 * time.Second)
+	})
+	f.Join()
+}

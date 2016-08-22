@@ -51,7 +51,7 @@ func (fo *Fork) fork() {
 // 线程结束信号
 func (fo *Fork) forkExit() {
 	select {
-	case fo.sub <- struct{}{}:
+	case fo.sub <- none:
 	default:
 	}
 	return
