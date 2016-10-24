@@ -1,5 +1,9 @@
 package fork
 
+import (
+	"runtime"
+)
+
 var none = struct{}{}
 
 type Fork struct {
@@ -20,8 +24,26 @@ func NewFork(max int) *Fork {
 	return NewForkBuf(max, 1)
 }
 
-// 加入闭包
-func (fo *Fork) Puah(f func()) {
+// 清空缓冲
+func (fo *Fork) CleanBuf() {
+	for {
+		select {
+		case <-fo.buf:
+		default:
+			runtime.Gosched()
+			return
+		}
+	}
+	return
+}
+
+// 执行任务的 长度 最大 只能是线程数加缓冲数 其他的阻塞看不到
+func (fo *Fork) Len() int {
+	return len(fo.buf) + len(fo.max)
+}
+
+// 加入闭包 可以的话立即执行
+func (fo *Fork) Push(f func()) {
 	// 如果缓冲已满就在这里阻塞
 	fo.buf <- f
 
@@ -34,7 +56,22 @@ func (fo *Fork) Puah(f func()) {
 	return
 }
 
-// 开启一个新的线程执行闭包 没有闭包时自动结束
+// 加入闭包
+func (fo *Fork) PushMerge(f func()) {
+	// 如果缓冲已满就在这里阻塞
+	fo.buf <- f
+	return
+}
+
+// 把当前线程加入 线程执行队列
+func (fo *Fork) forkMerge() {
+	select {
+	case fo.max <- none:
+		fo.fork()
+	}
+}
+
+// 把当前线程加入 线程执行队列
 func (fo *Fork) fork() {
 	for {
 		select {
@@ -60,9 +97,23 @@ func (fo *Fork) forkExit() {
 // 等待所有线程结束在返回
 func (fo *Fork) Join() {
 	for {
-		if len(fo.max) == 0 {
+		if fo.Len() == 0 {
 			return
 		}
+		select {
+		case <-fo.sub:
+		}
+	}
+	return
+}
+
+// 等待所有线程结束在返回 把当前线程加入线程执行队列
+func (fo *Fork) JoinMerge() {
+	for {
+		if fo.Len() == 0 {
+			return
+		}
+		fo.forkMerge()
 		select {
 		case <-fo.sub:
 		}

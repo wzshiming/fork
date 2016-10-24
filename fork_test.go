@@ -12,7 +12,7 @@ func testFork(t *testing.T, r, s, min int) {
 	f := NewFork(r)
 	o := time.Now()
 	for i := 0; i != s; i++ {
-		f.Puah(func() {
+		f.Push(func() {
 			time.Sleep(v + time.Duration(rand.Int63n(int64(v/5))))
 		})
 	}
@@ -50,8 +50,8 @@ func TestFork(t *testing.T) {
 
 func TestCCC(t *testing.T) {
 	f := NewFork(1)
-	f.Puah(func() {
-		time.Sleep(10 * time.Second)
+	f.Push(func() {
+		time.Sleep(1 * time.Second)
 	})
 	f.Join()
 }
