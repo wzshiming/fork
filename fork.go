@@ -44,14 +44,11 @@ func (fo *Fork) Len() int {
 
 // 加入闭包 可以的话立即执行
 func (fo *Fork) Push(f func()) {
-	// 如果缓冲已满就在这里阻塞
-	fo.buf <- f
-
-	// 如果未达到最大线程则开启新线程执行
+	// 如果未达到最大线程则开启新线程执行 缓冲已满就在这里阻塞
 	select {
 	case fo.max <- none:
-		go fo.fork()
-	default:
+		go fo.fork(f)
+	case fo.buf <- f:
 	}
 	return
 }
@@ -67,26 +64,34 @@ func (fo *Fork) PushMerge(f func()) {
 func (fo *Fork) forkMerge() {
 	select {
 	case fo.max <- none:
-		fo.fork()
+		fo.fork(nil)
 	}
 }
 
 // 把当前线程加入 线程执行队列
-func (fo *Fork) fork() {
+func (fo *Fork) fork(f0 func()) {
+	if f0 != nil {
+		f0()
+	}
+
+loop:
 	for {
 		select {
 		case f := <-fo.buf:
 			f()
 		default:
-			<-fo.max
-			fo.forkExit()
-			return
+			if len(fo.buf) == 0 {
+				break loop
+			}
 		}
 	}
+
+	fo.forkExit()
 }
 
 // 线程结束信号
 func (fo *Fork) forkExit() {
+	<-fo.max
 	select {
 	case fo.sub <- none:
 	default:
