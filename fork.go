@@ -2,6 +2,7 @@ package fork
 
 import (
 	"runtime"
+	"time"
 )
 
 var none = struct{}{}
@@ -107,6 +108,7 @@ func (fo *Fork) Join() {
 		}
 		select {
 		case <-fo.sub:
+		case <-time.After(time.Second):
 		}
 	}
 	return
@@ -121,6 +123,7 @@ func (fo *Fork) JoinMerge() {
 		fo.forkMerge()
 		select {
 		case <-fo.sub:
+		case <-time.After(time.Second):
 		}
 	}
 	return
