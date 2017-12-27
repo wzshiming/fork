@@ -102,25 +102,30 @@ func (fo *Fork) forkExit() {
 
 // 等待所有线程结束在返回
 func (fo *Fork) Join() {
-	for {
-		if fo.Len() == 0 {
-			return
-		}
-		select {
-		case <-fo.sub:
-		case <-time.After(time.Second):
-		}
-	}
+	fo.join(false)
 	return
 }
 
 // 等待所有线程结束在返回 把当前线程加入线程执行队列
 func (fo *Fork) JoinMerge() {
+	fo.join(true)
+	return
+}
+
+func (fo *Fork) join(merge bool) {
 	for {
-		if fo.Len() == 0 {
-			return
+		if len(fo.max) == 0 {
+			if len(fo.buf) == 0 {
+				return
+			}
+			if !merge {
+				fo.max <- none
+				go fo.fork(nil)
+			}
 		}
-		fo.forkMerge()
+		if merge {
+			fo.forkMerge()
+		}
 		select {
 		case <-fo.sub:
 		case <-time.After(time.Second):
