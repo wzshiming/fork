@@ -73,22 +73,22 @@ func (fo *Fork) fork(f0 func()) bool {
 	if f0 != nil {
 		f0()
 	}
+
 	select {
 	case f := <-fo.buf:
 		return fo.fork(f)
 	default:
-		return fo.forkExit()
 	}
-}
 
-// 线程结束信号
-func (fo *Fork) forkExit() bool {
 	<-fo.max
 	select {
-	case fo.sub <- none:
+	case fo.sub <- none: // 线程结束信号
 	default:
 	}
-	return false
+	if len(fo.buf) != 0 {
+		return fo.fork(nil)
+	}
+	return true
 }
 
 // 等待所有线程结束在返回
@@ -104,14 +104,10 @@ func (fo *Fork) JoinMerge() {
 }
 
 func (fo *Fork) join(merge bool) bool {
-	if len(fo.max) == 0 {
-		if len(fo.buf) == 0 {
-			return true
-		}
-		if !merge {
-			fo.Push(nil)
-		}
+	if fo.Len() == 0 {
+		return true
 	}
+
 	if merge {
 		fo.forkMerge()
 	}
