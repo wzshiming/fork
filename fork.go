@@ -1,7 +1,6 @@
 package fork
 
 import (
-	"runtime"
 	"time"
 )
 
@@ -31,11 +30,9 @@ func (fo *Fork) CleanBuf() {
 		select {
 		case <-fo.buf:
 		default:
-			runtime.Gosched()
 			return
 		}
 	}
-	return
 }
 
 // 执行任务的 长度 最大 只能是线程数加缓冲数 其他的阻塞看不到
@@ -68,37 +65,30 @@ func (fo *Fork) forkMerge() {
 	case fo.max <- none:
 		fo.fork(nil)
 	}
+	return
 }
 
 // 把当前线程加入 线程执行队列
-func (fo *Fork) fork(f0 func()) {
+func (fo *Fork) fork(f0 func()) bool {
 	if f0 != nil {
 		f0()
 	}
-
-loop:
-	for {
-		select {
-		case f := <-fo.buf:
-			f()
-		default:
-			if len(fo.buf) == 0 {
-				break loop
-			}
-		}
+	select {
+	case f := <-fo.buf:
+		return fo.fork(f)
+	default:
+		return fo.forkExit()
 	}
-
-	fo.forkExit()
 }
 
 // 线程结束信号
-func (fo *Fork) forkExit() {
+func (fo *Fork) forkExit() bool {
 	<-fo.max
 	select {
 	case fo.sub <- none:
 	default:
 	}
-	return
+	return false
 }
 
 // 等待所有线程结束在返回
@@ -113,24 +103,21 @@ func (fo *Fork) JoinMerge() {
 	return
 }
 
-func (fo *Fork) join(merge bool) {
-	for {
-		if len(fo.max) == 0 {
-			if len(fo.buf) == 0 {
-				return
-			}
-			if !merge {
-				fo.max <- none
-				go fo.fork(nil)
-			}
+func (fo *Fork) join(merge bool) bool {
+	if len(fo.max) == 0 {
+		if len(fo.buf) == 0 {
+			return true
 		}
-		if merge {
-			fo.forkMerge()
-		}
-		select {
-		case <-fo.sub:
-		case <-time.After(time.Second):
+		if !merge {
+			fo.Push(nil)
 		}
 	}
-	return
+	if merge {
+		fo.forkMerge()
+	}
+	select {
+	case <-fo.sub:
+	case <-time.After(time.Second):
+	}
+	return fo.join(merge)
 }
