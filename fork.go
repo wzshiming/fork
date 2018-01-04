@@ -49,7 +49,8 @@ func (fo *Fork) Push(f func()) {
 	select {
 	case fo.max <- none:
 		go fo.fork(f)
-	case fo.buf <- f:
+	default:
+		fo.buf <- f
 	}
 	return
 }
