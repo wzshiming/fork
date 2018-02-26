@@ -1,4 +1,4 @@
-package fork
+package fork // import "gopkg.in/wzshiming/fork.v2"
 
 import (
 	"sync"
