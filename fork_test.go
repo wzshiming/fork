@@ -53,5 +53,8 @@ func TestCCC(t *testing.T) {
 	f.Push(func() {
 		time.Sleep(1 * time.Second)
 	})
+	if f.Len() != 1 {
+		t.Fail()
+	}
 	f.Join()
 }
