@@ -6,12 +6,14 @@ import (
 
 var none = struct{}{}
 
+// Fork limit goroutines.
 type Fork struct {
 	buf chan func()    // pending
 	max chan struct{}  // maximum fork
 	wg  sync.WaitGroup // wait group
 }
 
+// NewForkBuf fork limit, existing buffer.
 func NewForkBuf(max int, buf int) *Fork {
 	return &Fork{
 		buf: make(chan func(), buf),
@@ -19,16 +21,17 @@ func NewForkBuf(max int, buf int) *Fork {
 	}
 }
 
+// NewFork Create a new fork.
 func NewFork(max int) *Fork {
-	return NewForkBuf(max, 1)
+	return NewForkBuf(max, 0)
 }
 
-// Len returns the size of the wait and the current fork
+// Len returns the size of the wait and the current fork.
 func (fo *Fork) Len() int {
 	return len(fo.buf) + len(fo.max)
 }
 
-// Push trying to perform
+// Push trying to perform.
 func (fo *Fork) Push(f func()) {
 	// If the maximum fork is not reached, the new fork execution buffer is full and blocked here
 	fo.wg.Add(1)
